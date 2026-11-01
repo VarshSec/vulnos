@@ -1,0 +1,103 @@
+# ============================================================================
+# VulnOS root .gitignore
+# Security first: never commit credentials, session material or raw evidence.
+# ============================================================================
+
+# --- Secrets and credentials -------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+secrets/
+credentials/
+*.secret
+*_secret.*
+id_rsa*
+id_ed25519*
+known_hosts*
+
+# --- Session material and local security notes -------------------------------
+# Never commit cookies, login captures, scratch exploit notes or heap dumps.
+cookies*.txt
+*_cookies.txt
+admin*_cookies*
+*_login*.txt
+sqli*.txt
+*.hprof
+heapdump*
+
+# --- Captured traffic / evidence --------------------------------------------
+# HAR, PCAP and session captures routinely contain auth tokens and PII.
+evidence/
+artifacts/
+captures/
+*.har
+*.pcap
+*.pcapng
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Node / frontend ---------------------------------------------------------
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+coverage/
+playwright-report/
+test-results/
+.vite/
+*.tsbuildinfo
+
+# --- Build and packaging -----------------------------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.whl
+*.log
+
+# --- Local infrastructure ----------------------------------------------------
+docker-compose.override.yml
+infra/volumes/
+infra/state/
+minio-data/
+pgdata/
+redis-data/
+
+# --- Operating system / editors ---------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+
+# --- Local notes -------------------------------------------------------------
+# Keep personal scratch notes out of the repository unless promoted to docs/.
+*.local.md
+TODO.local.md
