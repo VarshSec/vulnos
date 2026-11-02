@@ -1,0 +1,151 @@
+[project]
+name = "vulnos"
+version = "0.1.0"
+description = "AI-assisted, evidence-based web and API vulnerability discovery engine"
+readme = "README.md"
+requires-python = ">=3.13"
+license = {text = "Proprietary – see README"}
+authors = [
+    {name = "VarshSec"},
+]
+
+dependencies = [
+    "fastapi>=0.115.0,<1.0",
+    "uvicorn[standard]>=0.32.0,<1.0",
+    "pydantic>=2.9.0,<3.0",
+    "pydantic-settings>=2.6.0,<3.0",
+    "sqlalchemy>=2.0.36,<3.0",
+    "alembic>=1.14.0,<2.0",
+    "psycopg[binary]>=3.2.0,<4.0",
+    "redis>=5.2.0,<6.0",
+    "celery>=5.4.0,<6.0",
+    "httpx>=0.28.0,<1.0",
+    "structlog>=24.4.0,<25.0",
+    "boto3>=1.35.0,<2.0",
+    "python-multipart>=0.0.12",
+    "uuid6>=2025.0.1",
+    "argon2-cffi>=25.1.0",
+    "email-validator>=2.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0,<9.0",
+    "pytest-asyncio>=0.24.0,<1.0",
+    "pytest-cov>=6.0.0,<7.0",
+    "httpx>=0.28.0,<1.0",
+    "ruff>=0.8.0,<1.0",
+    "mypy>=1.13.0,<2.0",
+    "types-redis>=4.6.0",
+    "types-PyYAML>=6.0.0",
+    "boto3-stubs>=1.35.0",
+    "pre-commit>=4.0.0,<5.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend", "engine", "workers"]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["backend", "engine", "workers", "tests"]
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "S",     # flake8-bandit
+    "T20",   # flake8-print
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific
+]
+ignore = [
+    "S104",  # Possible binding to all interfaces — acceptable in container
+    "S603",  # subprocess calls — not used in P2.1
+    "S607",  # partial executable path — not used in P2.1
+    "B008",  # Depends() / Path() in function defaults — standard FastAPI pattern
+    "S106",  # Possible hardcoded password in argument — false positive on token_type
+    "SIM102", # Use single if instead of nested — reduces readability in guard clauses
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/alembic/versions/**" = ["E501"]         # long DDL statements in migrations
+"backend/tests/**" = ["S101", "S105", "S106"]  # assert and mock keys in tests
+"tests/**" = ["S101", "S105", "S106"]          # assert and mock keys in tests
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend", "engine", "workers"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["backend/tests", "tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: pure unit tests with no external dependencies",
+    "integration: tests requiring running services",
+    "docker: tests requiring Docker runtime (may be skipped)",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:celery.*",
+]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "-x",
+    "--tb=short",
+]
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["backend", "engine", "workers"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

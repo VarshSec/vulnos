@@ -1,0 +1,132 @@
+# ============================================================================
+# VulnOS Canonical Docker Compose (Phase 2.1)
+# Single-host local development infrastructure stack.
+#
+# NOTE ON OBJECT STORAGE (Part 6 Decision):
+# The 'silo' service uses the pgsty/silo image (MinIO-compatible fork) selected
+# specifically for local development because official MinIO images were unavailable
+# via attempted public registries.
+#
+# Constraints & Invariants:
+# 1. Local development only. No production suitability claims are made.
+# 2. Pinned by verified digest: sha256:7bb2aff6b89efe1cb1303c10fc21d579447434ed06649ac9ec05a5e2dbf30ad7
+# 3. Preserves standard S3-compatible storage abstraction for all application code.
+# 4. Production storage evaluation (managed AWS S3 or self-hosted Ceph/MinIO) remains open.
+# ============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vulnos/api:dev
+    container_name: vulnos-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=development
+      - APP_DEBUG=true
+      - DATABASE_URL=postgresql+psycopg://vulnos:change-me@postgres:5432/vulnos
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - S3_ENDPOINT_URL=http://silo:9000
+      - S3_REGION=us-east-1
+      - S3_ACCESS_KEY=replace-me
+      - S3_SECRET_KEY=replace-me
+      - S3_BUCKET_EVIDENCE=vulnos-evidence
+      - S3_BUCKET_REPORTS=vulnos-reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      silo:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - vulnos_network
+
+  postgres:
+    image: postgres:16-alpine@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
+    container_name: vulnos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vulnos
+      POSTGRES_USER: vulnos
+      POSTGRES_PASSWORD: change-me
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vulnos -d vulnos"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - vulnos_network
+
+  redis:
+    image: redis:7-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    container_name: vulnos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - vulnos_network
+
+  silo:
+    # Local-development MinIO-compatible object storage fork pinned by digest
+    image: docker.io/pgsty/silo:RELEASE.2026-10-26T00-00-00Z@sha256:7bb2aff6b89efe1cb1303c10fc21d579447434ed06649ac9ec05a5e2dbf30ad7
+    container_name: vulnos-silo
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: replace-me
+      MINIO_ROOT_PASSWORD: replace-me
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - silo_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - vulnos_network
+
+volumes:
+  postgres_data:
+    name: vulnos_postgres_data
+  redis_data:
+    name: vulnos_redis_data
+  silo_data:
+    name: vulnos_silo_data
+
+networks:
+  vulnos_network:
+    name: vulnos_network
+    driver: bridge

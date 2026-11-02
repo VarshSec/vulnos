@@ -7,9 +7,10 @@ explicitly authorized to test. It combines reconnaissance, web/API discovery, sp
 scanners, autonomous penetration-testing agents and a model-agnostic AI investigation layer
 behind a single orchestration and evidence pipeline.
 
-> **Status: Phase 1 — Architecture blueprint only.**
-> No VulnOS runtime code exists yet. Nothing in this repository should be interpreted as a
-> working scanner, a tested integration or a benchmark result. Implementation begins in Phase 2.
+> **Status: Phase 2.1 — Backend and Infrastructure Scaffold Complete.**
+> The initial runnable backend, typed configuration, structured logging, middleware pipeline,
+> readiness probes, Docker Compose definitions, and CI quality gates are implemented and tested.
+> Database models, authentication, scanning, and AI features begin in Phase 2.2+.
 
 ---
 
@@ -76,110 +77,105 @@ The detailed architecture, source-of-truth decisions and invariants live in
 
 ## Project status
 
-**Phase 1 — engineering blueprint only.** This repository currently contains architecture
-documentation and configuration templates. There is no runtime code, database schema,
-scanner integration, agent integration or AI integration yet. Implementation begins with
-Phase 2 in the [roadmap](docs/architecture/IMPLEMENTATION_ROADMAP.md).
+**Phase 2.1 — Backend and Infrastructure Scaffold Complete.**
 
-The blueprint was authored before any VulnOS application code existed. It is a design
-document, not a description of deployed software. No credentials, customer data or
-unrelated projects are included in this repository.
+The foundational FastAPI backend and development infrastructure are in place:
 
----
-
-## Proposed repository layout
-
-```text
-.
-├── backend/            FastAPI application: HTTP, auth, schemas, repositories
-├── engine/             Domain and orchestration logic, independent of HTTP
-│   ├── orchestrator/   Scan state machine and stage scheduling
-│   ├── scope/          Authoritative scope policy and egress guard
-│   ├── recon/          Asset discovery pipeline
-│   ├── discovery/      Crawling, parameters, API schemas
-│   ├── registry/       Tool registry and capability metadata
-│   ├── tise/           Tool Intelligence & Selection Engine
-│   ├── adapters/       Universal scanner and agent adapters
-│   ├── correlation/    Finding deduplication and clustering
-│   ├── investigation/  AI-assisted investigation plans
-│   ├── validation/     Evidence-based validation gates
-│   ├── reporting/      Markdown / JSON / PDF reports
-│   ├── ai/             Provider-independent model router
-│   ├── evidence/       Evidence object storage abstraction
-│   └── db/             SQLAlchemy models and repositories
-├── workers/            Celery entrypoints; no business logic
-├── frontend/           React + TypeScript SPA
-├── tools/              Pinned Docker images and metadata for external tools
-├── infra/              Compose, egress proxy, Docker hardening
-├── docs/               Architecture and operational documentation
-├── tests/              Cross-package contract and end-to-end tests
-└── scripts/            Developer and operator utilities
-```
-
-Every directory responsibility is defined in
-[COMPONENT_RESPONSIBILITIES.md](docs/architecture/COMPONENT_RESPONSIBILITIES.md#6-repository-layout-detailed).
-
----
-
-## Technology stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | React + TypeScript |
-| Backend | Python + FastAPI |
-| Database | PostgreSQL |
-| ORM / migrations | SQLAlchemy + Alembic |
-| Background jobs | Redis + Celery |
-| HTTP client | HTTPX |
-| Browser automation | Playwright |
-| Tool isolation | Docker |
-| Evidence storage | S3-compatible object storage |
-| Testing | Pytest |
-| API documentation | OpenAPI |
-| Logging | Structured JSON |
-
-No Kubernetes, microservice split or graph database is introduced in the initial phase.
-
----
-
-## Safety and authorization
-
-VulnOS is intended only for **authorized security testing**. The platform does not include,
-and will not include in the initial scope, stealth/evasion, credential theft, persistence or
-destructive exploitation. Operating it against systems without written authorization may be
-illegal.
-
-Mandatory controls designed in Phase 1 and implemented in later phases:
-
-- Explicit, versioned authorization records and allow/deny scope rules.
-- Default-deny scope checks before every request, every redirect and every DNS resolution.
-- Blocking of loopback, link-local, private and cloud-metadata destinations unless explicitly
-  authorized.
-- Human approval for state-changing or destructive operations.
-- Docker isolation with non-root users, resource limits and egress through an allowlisting proxy.
-- Prompt-injection defenses that prevent target content from changing scope or permissions.
-
-See [SECURITY_ARCHITECTURE.md](docs/architecture/SECURITY_ARCHITECTURE.md).
+- **Runnable FastAPI application:** Factory pattern, lifecycle hooks, versioned router (`/api/v1`), OpenAPI (`/docs`), `/health` (liveness), and `/ready` (bounded TCP readiness).
+- **Hardened settings:** Pydantic Settings with fail-fast production rejection of placeholder secrets, wildcard hosts, and debug flags.
+- **Security middleware & logging:** Request correlation IDs (`X-Request-ID`), defense-in-depth headers (nosniff, frame-ancestors, CSP, HSTS), access logging with query-string redaction, recursive sensitive-value redactor.
+- **Standard error envelope:** Consistent structure matching `API_CONTRACTS.md §5` for all HTTP, validation, and internal errors.
+- **Infrastructure & CI:** Canonical `compose.yaml` (API, PostgreSQL 16, Redis 7, Silo object storage fork pinned by verified digest), hardened multi-stage Dockerfile (non-root, read-only FS, cap_drop ALL), and GitHub Actions CI workflow.
 
 ---
 
 ## Getting started
 
-Phase 1 delivers documentation only. There is no runnable application.
+### Prerequisites
 
-Phase 2 will add the FastAPI service, PostgreSQL schema, migrations, authentication and the
-project/target/scope APIs. Until then, read the blueprint in this order:
+- Python 3.13+ (or 3.11/3.12 managed via `uv`)
+- [uv](https://docs.astral.sh/uv/) (v0.11+) package and tool manager
+- Docker & Docker Compose (optional for local API execution; required for containerized stack)
 
-1. [SYSTEM_ARCHITECTURE.md](docs/architecture/SYSTEM_ARCHITECTURE.md)
-2. [COMPONENT_RESPONSIBILITIES.md](docs/architecture/COMPONENT_RESPONSIBILITIES.md)
-3. [DATA_FLOW.md](docs/architecture/DATA_FLOW.md)
-4. [DATABASE_DESIGN.md](docs/architecture/DATABASE_DESIGN.md)
-5. [API_CONTRACTS.md](docs/architecture/API_CONTRACTS.md)
-6. [TOOL_INTEGRATION.md](docs/architecture/TOOL_INTEGRATION.md)
-7. [AGENT_ORCHESTRATION.md](docs/architecture/AGENT_ORCHESTRATION.md)
-8. [AI_AND_VALIDATION.md](docs/architecture/AI_AND_VALIDATION.md)
-9. [SECURITY_ARCHITECTURE.md](docs/architecture/SECURITY_ARCHITECTURE.md)
-10. [IMPLEMENTATION_ROADMAP.md](docs/architecture/IMPLEMENTATION_ROADMAP.md)
+### 1. Installation
+
+Clone repository and synchronize reproducible virtual environment:
+
+```bash
+git clone https://github.com/VarshSec/vulnos.git
+cd vulnos
+uv sync --all-extras
+```
+
+### 2. Configuration
+
+Copy the development environment template:
+
+```bash
+cp .env.example .env
+```
+
+Review `.env` settings. The default values provide safe development defaults. Never commit `.env` or real production credentials.
+
+### 3. Running the API locally
+
+Start the development server with hot-reload:
+
+```bash
+uv run uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Verify status endpoints:
+- Liveness probe: `http://127.0.0.1:8000/health`
+- Bounded readiness: `http://127.0.0.1:8000/ready`
+- Interactive OpenAPI documentation: `http://127.0.0.1:8000/docs`
+- Versioned root info: `http://127.0.0.1:8000/api/v1`
+
+### 4. Running with Docker Compose
+
+To run the complete local stack (API, PostgreSQL, Redis, and Silo object storage):
+
+```bash
+docker compose up -d
+```
+
+Check service health:
+
+```bash
+docker compose ps
+```
+
+*Note on Object Storage:* Per architectural decision ADR-010 and the P2.1 plan, local development uses the `pgsty/silo` image pinned by exact digest (`sha256:7bb2aff6...`), preserving the S3 abstraction while public MinIO registry issues are bypassed.
+
+### 5. Running Quality Checks and Tests
+
+Run the full automated test suite with coverage:
+
+```bash
+uv run pytest -v --cov=backend/app --cov-report=term-missing
+```
+
+Run code formatting and linting:
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+```
+
+Run static type checking:
+
+```bash
+uv run mypy backend tests
+```
+
+---
+
+## Known limitations (P2.1)
+
+1. **Docker Runtime:** If Docker Desktop is not running or available on the host, static Compose and Dockerfile tests pass, but runtime container tests are blocked.
+2. **Database Schema & Models:** Relational models and Alembic migrations begin in Phase 2.2.
+3. **Authentication:** User sessions, API keys, and RBAC enforcement begin in Phase 2.4.
+4. **Scanners and Agents:** Scanning engines, TISE, and autonomous agents begin in Phase 3+.
 
 ---
 

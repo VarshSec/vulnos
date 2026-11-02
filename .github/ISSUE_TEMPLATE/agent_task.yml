@@ -1,0 +1,94 @@
+name: "Agent Task Assignment"
+description: "Structured task specification assigned to an autonomous AI engineering agent (Antigravity)."
+title: "[Task] <Milestone ID>: <Action-oriented summary>"
+labels: ["agent:antigravity", "status:ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### VulnOS Autonomous Engineering Task Specification
+        This issue specifies a scoped engineering task assigned to an autonomous AI agent.
+        The agent must strictly follow `.orchestrator/EXECUTION_POLICY.md`.
+
+  - type: input
+    id: milestone_id
+    attributes:
+      label: "Milestone ID"
+      description: "Roadmap milestone identifier (e.g. P3-B, P3-C)."
+      placeholder: "e.g. P3-B"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "priority:critical"
+        - "priority:high"
+        - "priority:medium"
+        - "priority:low"
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: "1. Objective & Context"
+      description: "Concise summary of what this task accomplishes and why."
+      placeholder: "Implement worker attempt fencing in backend/app/recon/task_lifecycle.py..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: assigned_scope
+    attributes:
+      label: "2. Allowed File Scope (Strict Boundary)"
+      description: "List the explicit files or directories the agent is permitted to create or modify."
+      placeholder: |
+        Allowed to create/modify:
+        - backend/app/recon/task_lifecycle.py
+        - backend/app/recon/exceptions.py
+        - backend/tests/security/recon/test_worker_attempt_fencing.py
+    validations:
+      required: true
+
+  - type: textarea
+    id: prohibited_actions
+    attributes:
+      label: "3. Prohibited Actions & Invariants"
+      description: "Explicit constraints and out-of-scope actions."
+      value: |
+        - Never modify protected branch main directly.
+        - Never weaken or delete existing tests in backend/tests/.
+        - Never alter database schema without an approved Alembic migration.
+        - Never make unauthorized network requests or execute scans outside scope.
+        - Preserve hierarchical lock order: Scan FOR UPDATE first, ToolExecution FOR UPDATE second.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "4. Detailed Acceptance Criteria"
+      description: "Bulleted checklist defining exactly what constitutes completion."
+      placeholder: |
+        - [ ] Function claim_task_lease(...) implemented with Scan -> ToolExecution locking.
+        - [ ] Function accept_worker_result(...) implemented with attempt and worker_id fencing.
+        - [ ] All 11 adversarial test scenarios pass.
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification_commands
+    attributes:
+      label: "5. Required Verification Commands"
+      description: "List the exact commands the agent must run and report evidence for."
+      value: |
+        uv run ruff check .
+        uv run ruff format --check .
+        uv run mypy backend tests
+        uv run alembic heads
+        uv run pytest -v
+    validations:
+      required: true
